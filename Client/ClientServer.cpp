@@ -54,7 +54,6 @@ void ClientServer::readyRead()
 			{
 				if (socket->bytesAvailable() < 2) break;
 				in >> next_block_size;
-				qDebug() << "in >> next_block_size;";
 			}
 			if (socket->bytesAvailable() < next_block_size) break;
 			in >> js_inpkg;
@@ -62,8 +61,8 @@ void ClientServer::readyRead()
 
 			if (js_inpkg["TYPE"] == "GETSCREENSHOT")
 			{
+				is_screenshot = true;
 				qDebug() << "GETSCREENSHOT";
-				send_to_server(make_screenshot());
 				//send_to_server("C:\\Users\\Simon\\Desktop\\Client1\\ClientServer\\ClientServer\\test.txt");
 			}
 				
@@ -80,32 +79,54 @@ void ClientServer::send_to_server(const QJsonObject& js_pkg)
 	QString type = "JSON";
 	out << quint64(0)  << type << data_size<< js_pkg;
 	out.device()->seek(0);
-	out << (quint64)(data.size() - sizeof(quint64));
+	//out << (quint64)(data.size() - sizeof(quint64));
 	socket->write(data);
 }
 
 void ClientServer::send_to_server(QString name)
 {
 	data.clear();
-	QDataStream out(&data, QIODevice::ReadWrite);
-	out.setVersion(QDataStream::Qt_6_5); // Чтение данных из файла и кодирование их в Base64
-	QFile file(name);
-	file.open(QIODevice::ReadWrite);
-	QByteArray dat = file.readAll();
-	QByteArray base64Data = dat.toBase64();
-	// Отправка размера закодированных данных клиенту
-	qint64 dataSize = base64Data.size(); 
+	QDataStream out(&data, QIODevice::WriteOnly);
+	out.setVersion(QDataStream::Qt_6_5);
+	qint64 file_size;
 	QString type = "FILE";
-	out << quint64(0) << type << dataSize << base64Data; socket->write(data);
-
-	// Отправка закодированных данных клиенту socket->flush();
-	// Закрытие соединения и файла
+	QFile file(name);
+	file.open(QIODeviceBase::ReadOnly);
+	file_size = file.readAll().size();
+	file.close();
+	if (file.isOpen())
+		file.close();
+	out << quint64(0) << type << file_size;
+	out.device()->seek(0);
+	out << (quint64)(data.size() - sizeof(quint64));
+	file.open(QIODeviceBase::ReadOnly);
+	qint64 len = 0;
+	qint64 send_size = 0;
+	qint64 len_line = 0;
+	do
+	{
+		data.clear();
+		QDataStream out1(&data, QIODevice::WriteOnly);
+		out1.setVersion(QDataStream::Qt_6_5);
+		char buf[1024] = { 0 };
+		len = 0;
+		len = file.read(buf, sizeof(buf));
+		qDebug() << "len=" << len;
+		send_size += len;
+		QByteArray bytes(buf, len);
+		out1 << quint64(0) << type << bytes;
+		out1.device()->seek(0);
+		out1 << (quint64)(data.size() - sizeof(quint64));
+		
+		socket->write(data);
+	} while (len > 0);
+	qDebug() << "send_size=" << send_size;
+	qDebug() << "file_size=" << file_size;
 	file.close();
 }
 
 QJsonObject ClientServer::get_user_info()
 {
-
 	QString localhost_name = QHostInfo::localHostName();
 	QString localhost_ip;
 	QList<QHostAddress> host_list = QHostInfo::fromName(localhost_name).addresses();
@@ -210,6 +231,12 @@ QJsonObject ClientServer::get_all_info()
 
 void ClientServer::updateTime()
 {
+	if (is_screenshot)
+	{
+		send_to_server(make_screenshot());
+		is_screenshot = false;
+		return;
+	}
 	send_to_server(get_all_info());
 }
 

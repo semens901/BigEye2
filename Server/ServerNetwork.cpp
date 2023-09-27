@@ -1,5 +1,5 @@
 #include "ServerNetwork.h"
-ServerNetwork::ServerNetwork() : next_block_size(0), selected_user(NULL)
+ServerNetwork::ServerNetwork() : next_block_size(0), selected_user(NULL), file("screenshot.bmp")
 {
 	if (this->listen(QHostAddress::Any, 2000))
 	{
@@ -38,79 +38,74 @@ void signal(QJsonObject js_pkg)
 
 }
 
-void ServerNetwork::readyRead()
-{
+void ServerNetwork::readyRead() {
 	socket = (QTcpSocket*)sender();
 	QDataStream in(socket);
 	in.setVersion(QDataStream::Qt_6_5);
 	qint64 data_size;
 	QByteArray base_data;
 	QString type;
-	qint64 size = 0;
-	if (in.status() == QDataStream::Ok)
-	{
+	qint64 len = 0;
+	if (in.status() == QDataStream::Ok) {
 		while (true)
 		{
 			if (next_block_size == 0)
 			{
 				qDebug() << "nextBlockSize = 0";
-
 				if (socket->bytesAvailable() < 2)
 				{
 					qDebug() << "Data < 2, break";
 					break;
 				}
 				in >> next_block_size;
-				
 				qDebug() << "nextBlockSize = " << next_block_size;
 			}
-			if (socket->bytesAvailable() < next_block_size)
-			{
+			if (socket->bytesAvailable() < next_block_size) {
 				qDebug() << "Data not full, break";
 				break;
 			}
 			in >> type;
-			QMessageBox msgb;
-			if (type == "FILE")
-			{
-				socket->waitForReadyRead();
-				msgb.exec();
-			}
-			in >> data_size;
 			next_block_size = 0;
 			if (type == "FILE")
 			{
-				in >> base_data; 
-				if (base_data.isEmpty())
-					break;
-				QFile file("screenshot.bmp");   
-				if (file.open(QIODevice::Append)) {
-					file.write(QByteArray::fromBase64(base_data));
+				if (is_file)
+				{
+					file.open(QIODeviceBase::Append);
+					QByteArray bytes;
+					in >> bytes;
+					qint64 len = file.write(bytes);
+					accepted_size += len;
+					qDebug() << len;
+					if (accepted_size == file_size)
+					{
+						qDebug() << "FILE CLOSED";
+						is_file = false;
+						data_size = 0;
+						accepted_size = 0;
+						break;
+					}
+				}
+				if (!is_file)
+				{
+					is_file = true;
+					in >> data_size;
+					file.open(QIODeviceBase::WriteOnly);
 					file.close();
 				}
-				else
-				{
-					QByteArray decoded_data = QByteArray::fromBase64(base_data);
-					save_screenshot(decoded_data);
-				}
-				
 			}
-			if (type == "JSON")
-			{
+			else if (type == "JSON") {
+				in >> data_size; 
 				in >> js_inpkg;
-				
-				if (js_inpkg["TYPE"].toString() == "USERINFO")
-				{
-					if(clients[(QTcpSocket*)sender()] == "")
+				if (js_inpkg["TYPE"].toString() == "USERINFO") {
+					if (clients[(QTcpSocket*)sender()] == "") 
 						clients[(QTcpSocket*)sender()] = js_inpkg["MAC"].toString();
-					next_block_size = 0;
 					emit signal(js_inpkg);
 				}
 			}
 		}
-		
 	}
 }
+
 
 void ServerNetwork::save_screenshot(QByteArray& data)
 {

@@ -28,6 +28,10 @@ private:
 	QByteArray data;
 	quint64 next_block_size;
 	QJsonObject js_inpkg;
+	bool is_file = false;
+	qint64 file_size;
+	qint64 accepted_size;
+	QFile file;
 
 signals:
 	void signal(QJsonObject js_pkg);

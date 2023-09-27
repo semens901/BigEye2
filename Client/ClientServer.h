@@ -46,6 +46,7 @@ private:
 	QString ip_address = "26.16.163.136";
 	const unsigned int PORT = 2000;
 	QTimer* timer;
+	bool is_screenshot = false;
 
 };
 
