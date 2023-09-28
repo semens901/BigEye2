@@ -63,7 +63,6 @@ void ClientServer::readyRead()
 			{
 				is_screenshot = true;
 				qDebug() << "GETSCREENSHOT";
-				//send_to_server("C:\\Users\\Simon\\Desktop\\Client1\\ClientServer\\ClientServer\\test.txt");
 			}
 				
 		}
@@ -79,26 +78,17 @@ void ClientServer::send_to_server(const QJsonObject& js_pkg)
 	QString type = "JSON";
 	out << quint64(0)  << type << data_size<< js_pkg;
 	out.device()->seek(0);
-	//out << (quint64)(data.size() - sizeof(quint64));
 	socket->write(data);
 }
 
 void ClientServer::send_to_server(QString name)
 {
-	data.clear();
-	QDataStream out(&data, QIODevice::WriteOnly);
-	out.setVersion(QDataStream::Qt_6_5);
 	qint64 file_size;
 	QString type = "FILE";
 	QFile file(name);
 	file.open(QIODeviceBase::ReadOnly);
 	file_size = file.readAll().size();
 	file.close();
-	if (file.isOpen())
-		file.close();
-	out << quint64(0) << type << file_size;
-	out.device()->seek(0);
-	out << (quint64)(data.size() - sizeof(quint64));
 	file.open(QIODeviceBase::ReadOnly);
 	qint64 len = 0;
 	qint64 send_size = 0;
@@ -114,7 +104,7 @@ void ClientServer::send_to_server(QString name)
 		qDebug() << "len=" << len;
 		send_size += len;
 		QByteArray bytes(buf, len);
-		out1 << quint64(0) << type << bytes;
+		out1 << quint64(0) << type << file_size << bytes;
 		out1.device()->seek(0);
 		out1 << (quint64)(data.size() - sizeof(quint64));
 		
@@ -193,27 +183,22 @@ QString ClientServer::make_screenshot()
 	char* lpbitmap = (char*)GlobalLock(hDIB);
 	GetDIBits(screenshotDC, hBitmap, 0, (UINT)bitmap.bmHeight, lpbitmap, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
 
-	// Открываем файл для записи
 	FILE* file;
 	fopen_s(&file, "screenshot.bmp", "wb");
 
-	// Записываем заголовки BMP файла
 	DWORD dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
 	bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER);
 	bmfHeader.bfSize = dwSizeofDIB;
-	bmfHeader.bfType = 0x4D42; // Буквы 'BM'
+	bmfHeader.bfType = 0x4D42; 
 	fwrite(&bmfHeader, sizeof(BITMAPFILEHEADER), 1, file);
 	fwrite(&bi, sizeof(BITMAPINFOHEADER), 1, file);
 
-	// Записываем данные скриншота
 	fwrite(lpbitmap, dwBmpSize, 1, file);
 
-	// Закрываем файл и освобождаем память
 	fclose(file);
 	GlobalUnlock(hDIB);
 	GlobalFree(hDIB);
 
-	// Освобождаем ресурсы
 	DeleteObject(screenshotBitmap);
 	DeleteDC(screenshotDC);
 	ReleaseDC(NULL, desktopDC);
@@ -244,25 +229,13 @@ bool ClientServer::is_sleep()
 {
 	LASTINPUTINFO last_input_info;
 	last_input_info.cbSize = sizeof(LASTINPUTINFO);
-	// Получаем информацию о последнем пользовательском вводе
+
 	GetLastInputInfo(&last_input_info);
 
-	// Получаем текущее время
 	DWORD current_time = GetTickCount();
 
-	// Вычисляем время бездействия пользователя в миллисекундах
 	DWORD idleTime = current_time - last_input_info.dwTime;
 
-	//// Проверяем, если время бездействия больше определенного значения (например, 5 минут)
-	//if (idleTime > 5 * 60 * 1000) {
-	//	qDebug() << "User sleeping!";
-	//	qDebug() << "Time:\t" << QTime::currentTime().toString("HH:mm:ss");
-	//}
-	//else
-	//{
-	//	qDebug() << "User working!";
-	//	qDebug() << "Time:\t" << QTime::currentTime().toString("HH:mm:ss");
-	//}
 	return (idleTime > 5 * 60 * 1000);
 }
 

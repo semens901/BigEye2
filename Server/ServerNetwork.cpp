@@ -54,20 +54,27 @@ void ServerNetwork::readyRead() {
 				qDebug() << "nextBlockSize = 0";
 				if (socket->bytesAvailable() < 2)
 				{
-					qDebug() << "Data < 2, break";
 					break;
 				}
 				in >> next_block_size;
 				qDebug() << "nextBlockSize = " << next_block_size;
 			}
-			if (socket->bytesAvailable() < next_block_size) {
-				qDebug() << "Data not full, break";
+			if (socket->bytesAvailable() < next_block_size)
+			{
 				break;
 			}
-			in >> type;
+			in >> type; 
+			in >> data_size;
 			next_block_size = 0;
 			if (type == "FILE")
 			{
+				if (!is_file)
+				{
+					is_file = true;
+					file.open(QIODeviceBase::WriteOnly);
+					file.write("");
+					file.close();
+				}
 				if (is_file)
 				{
 					file.open(QIODeviceBase::Append);
@@ -75,26 +82,20 @@ void ServerNetwork::readyRead() {
 					in >> bytes;
 					qint64 len = file.write(bytes);
 					accepted_size += len;
-					qDebug() << len;
-					if (accepted_size == file_size)
+					file.close();
+					if (len == 0)
 					{
-						qDebug() << "FILE CLOSED";
+						QMessageBox msg;
+						msg.setText("Screenshot accepted!");
+						msg.exec();
 						is_file = false;
 						data_size = 0;
 						accepted_size = 0;
-						break;
 					}
 				}
-				if (!is_file)
-				{
-					is_file = true;
-					in >> data_size;
-					file.open(QIODeviceBase::WriteOnly);
-					file.close();
-				}
 			}
-			else if (type == "JSON") {
-				in >> data_size; 
+			else if (type == "JSON")
+			{
 				in >> js_inpkg;
 				if (js_inpkg["TYPE"].toString() == "USERINFO") {
 					if (clients[(QTcpSocket*)sender()] == "") 

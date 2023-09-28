@@ -1,4 +1,4 @@
-#include "QtWidgetsApplication.h"
+#include "Server.h"
 
 Server::Server(QWidget *parent)
     : QMainWindow(parent)

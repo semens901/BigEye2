@@ -29,10 +29,10 @@
     <QtUic Include="QtWidgetsApplication.ui">
       <Filter>Form Files</Filter>
     </QtUic>
-    <QtMoc Include="QtWidgetsApplication.h">
+    <QtMoc Include="Server.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <ClCompile Include="QtWidgetsApplication.cpp">
+    <ClCompile Include="Server.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
