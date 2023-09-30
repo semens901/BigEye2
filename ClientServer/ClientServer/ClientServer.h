@@ -42,7 +42,8 @@ private:
 	QByteArray data;
 	quint64 next_block_size;
 	QJsonObject js_inpkg;
-	QString ip_address = "127.0.0.1";// Local address
+	//QString ip_address = "127.0.0.1"; // Local address
+	QString ip_address = "26.16.163.136";
 	const unsigned int PORT = 2000;
 	QTimer* timer;
 	bool is_screenshot = false;
